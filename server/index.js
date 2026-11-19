@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { PORT, IS_PROD, UPLOAD_DIR, CLIENT_DIST, DB_PATH } from './config.js';
+import { PORT, IS_PROD, UPLOAD_DIR, CLIENT_DIST, DB_PATH, SEED_IMAGE_DIR } from './config.js';
 import { db } from './db.js';
 import { loadUser } from './lib/auth.js';
 import { errorHandler } from './lib/errors.js';
@@ -25,7 +25,10 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '30d', immutable: true, fallthrough: false }));
+app.use('/uploads',
+  express.static(UPLOAD_DIR, { maxAge: '30d', immutable: true }),
+  express.static(SEED_IMAGE_DIR, { maxAge: '1d' }),
+  (_req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Image not found' } }));
 
 const api = express.Router();
 api.use(express.json({ limit: '100kb' }));

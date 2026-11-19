@@ -3,3 +3,4 @@ data
 client/dist
 .git
 *.log
+seed-images

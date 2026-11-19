@@ -11,6 +11,8 @@ export const DB_PATH = path.join(DATA_DIR, 'shuka.db');
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 export const CLIENT_DIST = path.join(ROOT, 'client', 'dist');
+// Demo product images pre-rendered at build time (Dockerfile), served under /uploads/seed/...
+export const SEED_IMAGE_DIR = path.join(ROOT, 'seed-images');
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(BACKUP_DIR, { recursive: true });

@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import crypto from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
-import { UPLOAD_DIR } from './config.js';
+import { UPLOAD_DIR, SEED_IMAGE_DIR } from './config.js';
 
 export const DEMO_PASSWORD = 'shuka1234';
 
@@ -107,14 +107,36 @@ function productSvg(title, category, hue, variant) {
   </svg>`;
 }
 
-async function writeSeedImage(productId, svg) {
-  const key = `${productId}/${crypto.randomUUID()}`;
-  const base = path.join(UPLOAD_DIR, key);
+/** Same key every time, so images rendered at build time can be reused on every start. */
+const seedKey = (i, v) => `seed/p${i + 1}-v${v}`;
+
+async function renderSeedImage(outDir, key, svg) {
+  const base = path.join(outDir, key);
   await fs.mkdir(path.dirname(base), { recursive: true });
   const buf = Buffer.from(svg);
   await sharp(buf).resize(1200, 1200).webp({ quality: 80 }).toFile(`${base}-large.webp`);
   await sharp(buf).resize(400, 400).webp({ quality: 75 }).toFile(`${base}-thumb.webp`);
-  return key;
+}
+
+const hasImage = (dir, key) => existsSync(path.join(dir, `${key}-large.webp`)) && existsSync(path.join(dir, `${key}-thumb.webp`));
+
+/** Render every demo image into outDir unless it already exists in SEED_IMAGE_DIR or outDir. Returns keys per product. */
+export async function ensureSeedImages(outDir = UPLOAD_DIR) {
+  const all = [];
+  for (let i = 0; i < PRODUCTS.length; i++) {
+    const [, slug, title] = PRODUCTS[i];
+    const [catName, , hue] = CATEGORIES.find((c) => c[1] === slug);
+    const keys = [];
+    for (let v = 0; v < 1 + (i % 3); v++) {
+      const key = seedKey(i, v);
+      if (!hasImage(SEED_IMAGE_DIR, key) && !hasImage(outDir, key)) {
+        await renderSeedImage(outDir, key, productSvg(title, catName, (hue + i * 7) % 360, v));
+      }
+      keys.push(key);
+    }
+    all.push(keys);
+  }
+  return all;
 }
 
 export async function seed(db, { log = console.log } = {}) {
@@ -123,15 +145,8 @@ export async function seed(db, { log = console.log } = {}) {
   const iso = (offsetMs) => new Date(base + offsetMs).toISOString();
 
   // Generate images first (slow work outside the transaction).
-  const images = [];
-  for (let i = 0; i < PRODUCTS.length; i++) {
-    const [, slug, title] = PRODUCTS[i];
-    const [catName, , hue] = CATEGORIES.find((c) => c[1] === slug);
-    const n = 1 + (i % 3);
-    const keys = [];
-    for (let v = 0; v < n; v++) keys.push(await writeSeedImage(`seed-${i + 1}`, productSvg(title, catName, (hue + i * 7) % 360, v)));
-    images.push(keys);
-  }
+  // Uses the images pre-rendered at build time; renders only what is missing.
+  const images = await ensureSeedImages();
 
   db.transaction(() => {
     const insCat = db.prepare('INSERT INTO categories (name, slug) VALUES (?, ?)');
@@ -191,7 +206,11 @@ export async function seed(db, { log = console.log } = {}) {
 }
 
 /** CLI: `npm run seed` seeds an empty DB; `npm run seed -- --reset` wipes data/ first. */
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv.includes('--images')) {
+  // Build step: `node server/seed.js --images` renders all demo images into seed-images/.
+  await ensureSeedImages(SEED_IMAGE_DIR);
+  console.log(`seed: demo images ready in ${SEED_IMAGE_DIR}`);
+} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { DB_PATH } = await import('./config.js');
   if (process.argv.includes('--reset')) {
     for (const f of [DB_PATH, DB_PATH + '-wal', DB_PATH + '-shm']) await fs.rm(f, { force: true });
