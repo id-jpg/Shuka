@@ -82,16 +82,19 @@ All endpoints live under `/api`. Errors: `{ "error": { "code", "message", "field
 - Orders: `POST /orders` (with `requestKey`), `GET /orders`, `GET /orders/:id`, `GET /orders/last-address`, `POST /orders/:id/sellers/:sellerOrderId/cancel`
 - Seller: `POST /seller/activate`, `GET /seller/overview`, `GET|POST /seller/products`, `GET|PATCH /seller/products/:id`, `POST /seller/products/:id/images`, `DELETE /seller/products/:id/images/:imageId`, `GET /seller/orders?status=`, `GET /seller/orders/:id`, `POST /seller/orders/:id/status` with `{ "to": "shipped" }`
 
-## Deploy (Render, with a persistent disk)
+## Deploy (Render, free plan)
 
-`render.yaml` is a Render Blueprint: one Docker web service (Frankfurt, Starter plan) with a 1 GB disk at `/data`,
-a health check on `/api/health`, and `NODE_ENV`, `DATA_DIR` and a generated `SESSION_SECRET`.
+`render.yaml` is a Render Blueprint: one free Docker web service (Frankfurt) with a health check on `/api/health`,
+`NODE_ENV=production`, `DATA_DIR=/data` and a generated `SESSION_SECRET`.
 
 1. Push this repository to GitHub.
-2. Render → **New** → **Blueprint** → connect GitHub and pick the repository → **Apply**.
+2. Render → **New** → **Blueprint** → connect GitHub and pick the repository → **Deploy Blueprint**.
 3. Wait for the first deploy (logs end with `Shuka running on …`). The `https://shuka-xxxx.onrender.com` URL is the product.
+4. Keep it awake: create a free monitor on cron-job.org or UptimeRobot that opens
+   `https://shuka-xxxx.onrender.com/api/health` every 10 minutes.
 
-Every push to `main` deploys again; the database and images on `/data` are kept.
-The free Render plan has no persistent disk, so it must not be used: the database would be lost on every deploy or restart.
-The demo accounts above exist on a fresh deployment too; set `SEED_DEMO=false` before the first start to skip them.
-Backups: the server writes `/data/backups/shuka-YYYY-MM-DD.db` daily (keeps 7); Render also snapshots the disk daily.
+**Free plan limits.** Render's free web services have no persistent disk. The SQLite file and uploaded images
+live on the container's disk, so they are wiped on every deploy, restart, or wake-up after 15 idle minutes.
+On every start the app re-creates the schema and the demo data, so the site always works, but accounts,
+products and orders added later are lost. For the demo: deploy, start the pinger, and don't push during the demo.
+A paid instance with a disk at `/data` (plan `starter` + a `disk:` block) removes this limit with no code changes.

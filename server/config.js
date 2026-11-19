@@ -18,8 +18,9 @@ fs.mkdirSync(BACKUP_DIR, { recursive: true });
 function loadSecret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
   if (IS_PROD) {
-    console.error('FATAL: SESSION_SECRET environment variable is required in production.');
-    process.exit(1);
+    // Don't crash the deploy: use a random secret for this process. Sessions then end on every restart.
+    console.warn('WARNING: SESSION_SECRET is not set. Using a random one; users are logged out on every restart.');
+    return crypto.randomBytes(32).toString('hex');
   }
   // Local development only: keep a generated secret next to the DB so sessions survive restarts.
   const file = path.join(DATA_DIR, '.dev-session-secret');
