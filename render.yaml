@@ -1,0 +1,24 @@
+# Render Blueprint: one web service that runs the whole product (API + built React app + uploads)
+# from the Dockerfile, with a persistent disk at /data for the SQLite file, uploads and backups.
+# Render → New → Blueprint → pick this repository.
+services:
+  - type: web
+    name: shuka
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # a persistent disk needs a paid instance; the free plan loses the database
+    region: frankfurt        # closest Render region to Armenia
+    branch: main
+    numInstances: 1          # SQLite = one process; a disk can attach to one instance only
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /data
+      - key: SESSION_SECRET
+        generateValue: true  # Render creates a random secret once and keeps it
+    disk:
+      name: shuka-data
+      mountPath: /data
+      sizeGB: 1

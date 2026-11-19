@@ -82,13 +82,16 @@ All endpoints live under `/api`. Errors: `{ "error": { "code", "message", "field
 - Orders: `POST /orders` (with `requestKey`), `GET /orders`, `GET /orders/:id`, `GET /orders/last-address`, `POST /orders/:id/sellers/:sellerOrderId/cancel`
 - Seller: `POST /seller/activate`, `GET /seller/overview`, `GET|POST /seller/products`, `GET|PATCH /seller/products/:id`, `POST /seller/products/:id/images`, `DELETE /seller/products/:id/images/:imageId`, `GET /seller/orders?status=`, `GET /seller/orders/:id`, `POST /seller/orders/:id/status` with `{ "to": "shipped" }`
 
-## Deploy (Railway, with a persistent volume)
+## Deploy (Render, with a persistent disk)
 
-1. Push this folder to a GitHub repository.
-2. Railway → New Project → Deploy from GitHub repo. The `Dockerfile` is detected automatically.
-3. Service → right-click → **Attach volume**, mount path **`/data`** (database, uploads and backups live there).
-4. Service → **Variables**: `NODE_ENV=production`, `DATA_DIR=/data`, `SESSION_SECRET=<64 random hex chars>`.
-5. Service → Settings → Networking → **Generate Domain**. That HTTPS URL is the product.
+`render.yaml` is a Render Blueprint: one Docker web service (Frankfurt, Starter plan) with a 1 GB disk at `/data`,
+a health check on `/api/health`, and `NODE_ENV`, `DATA_DIR` and a generated `SESSION_SECRET`.
 
-Serverless hosts without a persistent disk must not be used: the database would be lost on every deploy.
+1. Push this repository to GitHub.
+2. Render → **New** → **Blueprint** → connect GitHub and pick the repository → **Apply**.
+3. Wait for the first deploy (logs end with `Shuka running on …`). The `https://shuka-xxxx.onrender.com` URL is the product.
+
+Every push to `main` deploys again; the database and images on `/data` are kept.
+The free Render plan has no persistent disk, so it must not be used: the database would be lost on every deploy or restart.
 The demo accounts above exist on a fresh deployment too; set `SEED_DEMO=false` before the first start to skip them.
+Backups: the server writes `/data/backups/shuka-YYYY-MM-DD.db` daily (keeps 7); Render also snapshots the disk daily.
