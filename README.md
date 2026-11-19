@@ -98,3 +98,16 @@ live on the container's disk, so they are wiped on every deploy, restart, or wak
 On every start the app re-creates the schema and the demo data, so the site always works, but accounts,
 products and orders added later are lost. For the demo: deploy, start the pinger, and don't push during the demo.
 A paid instance with a disk at `/data` (plan `starter` + a `disk:` block) removes this limit with no code changes.
+
+## Frontend on Netlify (optional)
+
+`netlify.toml` builds the React app (`npm run build` → `client/dist`) and proxies `/api/*` and `/uploads/*`
+to the Render service, so the browser only talks to the Netlify domain (first-party cookie, no CORS).
+
+1. Netlify → **Add new project** → **Import an existing project** → GitHub → pick the repository.
+   The build settings come from `netlify.toml`; leave them as they are → **Deploy**.
+2. The `https://<name>.netlify.app` URL now serves the whole product; Render keeps running the API.
+
+If the Render URL changes, update the two `to = "https://…onrender.com/…"` lines in `netlify.toml`.
+Netlify's proxy waits about 26 seconds, so keep the Render service awake (see the pinger above),
+otherwise the first request after a sleep can fail with a 504.
