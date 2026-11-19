@@ -7,6 +7,7 @@ import { db } from './db.js';
 import { loadUser } from './lib/auth.js';
 import { errorHandler } from './lib/errors.js';
 import { scheduleDailyBackup } from './backup.js';
+import { photoCredits } from './seed.js';
 import authRoutes from './routes/auth.js';
 import catalogRoutes from './routes/catalog.js';
 import cartRoutes from './routes/cart.js';
@@ -35,6 +36,7 @@ api.use(express.json({ limit: '100kb' }));
 api.use(cookieParser());
 api.use(loadUser);
 api.get('/health', (_req, res) => res.json({ ok: true }));
+api.get('/credits', (_req, res) => res.json({ credits: photoCredits() }));
 api.use(authRoutes, catalogRoutes, cartRoutes, orderRoutes, sellerRoutes);
 api.use((_req, _res, next) => next(Object.assign(new Error(), { status: 404 })));
 api.use((err, req, res, next) => {

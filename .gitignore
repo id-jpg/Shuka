@@ -4,3 +4,4 @@ client/dist/
 *.log
 .env
 seed-images
+.claude/

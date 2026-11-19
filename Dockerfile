@@ -19,6 +19,7 @@ ENV NODE_ENV=production \
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/client/dist ./client/dist
 COPY --from=build /app/seed-images ./seed-images
+COPY seed-photos ./seed-photos
 COPY package.json ./
 COPY server ./server
 EXPOSE 3000

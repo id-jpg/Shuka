@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
@@ -108,14 +108,18 @@ function productSvg(title, category, hue, variant) {
 }
 
 /** Same key every time, so images rendered at build time can be reused on every start. */
-const seedKey = (i, v) => `seed/p${i + 1}-v${v}`;
+const seedKey = (i, v) => `seed/photo-p${i + 1}-v${v}`;
 
-async function renderSeedImage(outDir, key, svg) {
+/** Real product photos from Wikimedia Commons (see tools/fetch-seed-photos.mjs and seed-photos/credits.json). */
+const PHOTO_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'seed-photos');
+const photoFile = (i, v) => path.join(PHOTO_DIR, `p${i + 1}-v${v}.jpg`);
+
+async function renderSeedImage(outDir, key, input) {
   const base = path.join(outDir, key);
   await fs.mkdir(path.dirname(base), { recursive: true });
-  const buf = Buffer.from(svg);
-  await sharp(buf).resize(1200, 1200).webp({ quality: 80 }).toFile(`${base}-large.webp`);
-  await sharp(buf).resize(400, 400).webp({ quality: 75 }).toFile(`${base}-thumb.webp`);
+  await sharp(input).resize(1200, 1200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 82 }).toFile(`${base}-large.webp`);
+  await sharp(input).resize(400, 400, { fit: 'contain', background: '#ffffff' }).flatten({ background: '#ffffff' })
+    .webp({ quality: 78 }).toFile(`${base}-thumb.webp`);
 }
 
 const hasImage = (dir, key) => existsSync(path.join(dir, `${key}-large.webp`)) && existsSync(path.join(dir, `${key}-thumb.webp`));
@@ -127,10 +131,15 @@ export async function ensureSeedImages(outDir = UPLOAD_DIR) {
     const [, slug, title] = PRODUCTS[i];
     const [catName, , hue] = CATEGORIES.find((c) => c[1] === slug);
     const keys = [];
-    for (let v = 0; v < 1 + (i % 3); v++) {
+    // Use every real photo the product has; fall back to drawn placeholders if seed-photos/ is missing.
+    let photos = 0;
+    while (photos < 5 && existsSync(photoFile(i, photos))) photos++;
+    const count = photos || 1 + (i % 3);
+    for (let v = 0; v < count; v++) {
       const key = seedKey(i, v);
       if (!hasImage(SEED_IMAGE_DIR, key) && !hasImage(outDir, key)) {
-        await renderSeedImage(outDir, key, productSvg(title, catName, (hue + i * 7) % 360, v));
+        const input = photos ? photoFile(i, v) : Buffer.from(productSvg(title, catName, (hue + i * 7) % 360, v));
+        await renderSeedImage(outDir, key, input);
       }
       keys.push(key);
     }
@@ -224,4 +233,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv.includes(
     await seed(db);
   }
   db.close();
+}
+
+/** Photo credits for the /credits page (CC BY / CC BY-SA require naming the author and licence). */
+export function photoCredits() {
+  const file = path.join(PHOTO_DIR, 'credits.json');
+  if (!existsSync(file)) return [];
+  return Object.entries(JSON.parse(readFileSync(file, 'utf8'))).map(([name, c]) => {
+    const [, n, v] = name.match(/^p(\d+)-v(\d+)\.jpg$/);
+    return { product: PRODUCTS[n - 1]?.[2], image: `/uploads/${seedKey(n - 1, Number(v))}-thumb.webp`, ...c };
+  });
 }
