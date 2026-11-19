@@ -1,0 +1,35 @@
+{
+  "name": "shuka",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shuka — Amazon-style marketplace for Armenia (Express + SQLite + React)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,magenta \"node --watch-path=server server/index.js\" \"vite\"",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "migrate": "node server/migrate.js",
+    "seed": "node server/seed.js",
+    "backup": "node server/backup.js",
+    "test": "node tests/break-it.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.2.0",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.3.0",
+    "multer": "^2.5.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "concurrently": "^10.0.7",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.6",
+    "vite": "^8.3.8"
+  }
+}
